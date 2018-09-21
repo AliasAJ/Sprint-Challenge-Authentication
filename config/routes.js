@@ -1,6 +1,8 @@
 const axios = require('axios');
+const bcrypt = require('bcryptjs');
+const db = require('../database/dbConfig');
 
-const { authenticate } = require('./middlewares');
+const { authenticate, getToken } = require('./middlewares');
 
 module.exports = server => {
   server.post('/api/register', register);
@@ -10,6 +12,24 @@ module.exports = server => {
 
 function register(req, res) {
   // implement user registration
+  const creds = req.body;
+  creds.password = bcrypt.hashSync(creds.password, 5);
+
+  db('users')
+    .insert(creds)
+    .then(ids => {
+      const id = ids[0];
+
+      db('users')
+        .where({ id })
+        .first()
+        .them(user => {
+          const token = getToken(user);
+          res.status(201).json({ id: user.id, token });
+        })
+        .catch(err => res.status(500).send(err));
+    })
+    .catch(err => res.status(500).send(err));
 }
 
 function login(req, res) {
